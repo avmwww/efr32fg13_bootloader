@@ -85,6 +85,11 @@ static inline void usart_hw_tx_irq_enable(usart_hw_t *hw)
 	USART_IntEnable(hw->regs, USART_IEN_TXBL | USART_IEN_TXC);
 }
 
+static inline void usart_hw_tx_complete_irq_enable(usart_hw_t *hw)
+{
+	USART_IntEnable(hw->regs, USART_IEN_TXC);
+}
+
 static inline void usart_hw_rx_irq_disable(usart_hw_t *hw)
 {
 	USART_IntDisable(hw->regs, USART_IEN_RXDATAV | USART_IEN_RXOF);

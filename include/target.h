@@ -82,7 +82,7 @@ static inline void usart_hw_tx_complete_irq_disable(usart_hw_t *hw)
 
 static inline void usart_hw_tx_irq_enable(usart_hw_t *hw)
 {
-	USART_IntEnable(hw->regs, USART_IEN_TXBL | USART_IEN_TXC);
+	USART_IntEnable(hw->regs, USART_IEN_TXBL);
 }
 
 static inline void usart_hw_tx_complete_irq_enable(usart_hw_t *hw)
@@ -103,6 +103,11 @@ static inline void usart_hw_rx_irq_enable(usart_hw_t *hw)
 static inline void usart_hw_tx(usart_hw_t *hw, uint8_t data)
 {
 	hw->regs->TXDATA = data;
+}
+
+static inline int usart_hw_rx_ready(usart_hw_t *hw)
+{
+	return USART_IntGet(hw->regs) & USART_IEN_RXDATAV;
 }
 
 static inline uint8_t usart_hw_rx(usart_hw_t *hw)
@@ -154,6 +159,8 @@ static inline void usart_hw_enable(usart_hw_t *hw, int ena_tx, int ena_rx)
 	hw->regs->CMD = cmd;
 }
 
+//GPIO_PinOutSet
+
 void usart_hw_half_duplex_tx(usart_hw_t *hw);
 void usart_hw_half_duplex_rx(usart_hw_t *hw);
 usart_hw_t *usart_hw_init(int num);
@@ -164,10 +171,21 @@ void target_init(void);
 uint32_t timer_get_us(void);
 uint32_t timer_get_ms(void);
 void timer_sleep_ms(uint32_t ms);
+void timer_sleep_us(uint32_t us);
+
+#define XSTR(s) STR(s)
+#define STR(s) #s
+
+#define BTL_VERSION_MAJOR	1
+#define BTL_VERSION_MINOR	0
+
+#define BTL_VERSION_STR		"BTL V" XSTR(BTL_VERSION_MAJOR) "." XSTR(BTL_VERSION_MINOR)
+
+
+
 
 void dump_buf(const char *prefix, const void *buf, unsigned int len, int as);
-
 #include <stdio.h>
-#define dbg	printf
+#define dbg			printf
 
 #endif

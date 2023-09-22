@@ -100,6 +100,8 @@ int usart_write(int num, char d)
 		return -1;
 
 	usart_hw_tx_irq_enable(u->hw);
+	// TODO: this is fix USART overflow
+	timer_sleep_us(100);
 	return 0;
 }
 
@@ -122,8 +124,14 @@ int usart_write_buf(int num, const void *buf, int len)
 int usart_read(int num)
 {
 	struct usart *u = &usart[num];
+	int n;
 
-	return queue_read(&u->rx.queue);
+	n = queue_read(&u->rx.queue);
+	if (n < 0) {
+		if (usart_hw_rx_ready(u->hw))
+			return usart_hw_rx(u->hw);
+	}
+	return n;
 }
 
 int usart_read_buf(int num, void *buf, int len)
@@ -134,9 +142,13 @@ int usart_read_buf(int num, void *buf, int len)
 	int c;
 
 	while (len) {
+		c = usart_read(num);
+		if (c < 0)
+			break;
+#if 0
 		if ((c = queue_read(&u->rx.queue)) < 0)
 			break;
-
+#endif
 		*p++ = c;
 		len--;
 	}

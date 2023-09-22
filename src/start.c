@@ -3,16 +3,45 @@
  */
 
 #include <stdint.h>
+#include <em_core.h>
 
-#define VTOR		(*(volatile uint32_t *)0xE000ED08)
-
-__attribute__((__noreturn__)) void Reset_Handler(void);
+//#include "silabs.h"
+//#include "first_stage_main.h"
 
 extern const uint32_t __Vectors[];
 
-__attribute__((__section__(".start"))) void start(void)
+__attribute__((__section__(".start"))) __attribute__((__noreturn__))
+void start(void)
 {
-	VTOR = (uint32_t)__Vectors & ~0x7f;
-	Reset_Handler();
+	uint32_t *reset_vector = (uint32_t *)__Vectors;
+
+	*(uint32_t *)0x400e0000 = 1;
+
+	SCB->VTOR = (uint32_t)reset_vector;
+	asm volatile ("movs  r3, %[reset_vector]\n"
+                      "ldr.w sp, [r3]\n"
+                      "ldr   r2, [r3, #4]\n"
+                      "bx r2\n"
+                      : /* no outputs */
+                      : [reset_vector] "r" (reset_vector)
+                      : /* no clobbers */
+        );
+
+	for(;;);
 }
 
+__attribute__((__noreturn__)) void boot_app(void)
+{
+	uint32_t *reset_vector = (uint32_t *)0;
+
+	SCB->VTOR = (uint32_t)reset_vector;
+	asm volatile ("movs r3, %[reset_vector]\n"
+                      "ldr.w sp, [r3]\n"
+                      "ldr   r2, [r3, #4]\n"
+                      "bx r2\n"
+                      : /* no outputs */
+                      : [reset_vector] "r" (reset_vector)
+                      : /* no clobbers */
+        );
+	for(;;);
+}

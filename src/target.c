@@ -120,7 +120,7 @@ static void usart_configure_pins(usart_hw_t *hw)
 	CMU_ClockEnable(cmuClock_GPIO, true);
 
 	/* Configure VCOM transmit pin to board controller as an output */
-	GPIO_PinModeSet(hw->tx.port, hw->tx.pin, gpioModeWiredAndPullUp, 0);
+	GPIO_PinModeSet(hw->tx.port, hw->tx.pin, gpioModePushPull, 1);
 
 	/* Configure VCOM reeive pin from board controller as an input */
 	GPIO_PinModeSet(hw->rx.port, hw->rx.pin, gpioModeInput, 0);
@@ -243,6 +243,13 @@ uint32_t timer_get_us(void)
 uint32_t timer_get_ms(void)
 {
 	return timer_tick / 1000;
+}
+
+void timer_sleep_us(uint32_t us)
+{
+	uint32_t start = timer_get_us();
+
+	while ((timer_get_us() - start) < us);
 }
 
 void timer_sleep_ms(uint32_t ms)

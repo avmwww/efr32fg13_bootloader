@@ -10,6 +10,8 @@ OPT = -Og
 
 DEBUG = 1
 
+
+
 # C sources
 C_SOURCES = $(wildcard *.c */*.c)
 
@@ -22,8 +24,9 @@ C_DEFS =
 # Other C flags
 C_FLAGS = -std=gnu11 -Wall -Wextra -fdata-sections -ffunction-sections
 
+
 # Assembly sources
-#ASM_SOURCES += src/start.S
+ASM_SOURCES =
 
 # Assembly include paths
 AS_INCLUDES =
@@ -69,7 +72,6 @@ EMULIB_SRCS = em_cmu.c \
 
 C_SOURCES += $(addprefix $(GECKOSDK)/platform/emlib/src/,$(EMULIB_SRCS))
 
-
 C_INCLUDES += -I$(GECKOSDK)/platform/emlib/inc
 C_INCLUDES += -I$(GECKOSDK)/platform/CMSIS/Core/Include
 C_INCLUDES += -I$(GECKOSDK)/platform/common/inc
@@ -85,7 +87,8 @@ C_INCLUDES += -I$(GECKOSDK)/platform/common/inc
 #######################################
 
 # Define for part number
-C_DEFS += -DEFR32FG13P231F512GM32
+C_DEFS += -DEFR32FG13P231F512GM32=1 \
+	  -D__HEAP_SIZE=0x00001000
 
 # Include paths
 C_INCLUDES += -I$(GECKOSDK)/platform/Device/SiliconLabs/EFR32FG13P/Include
@@ -99,10 +102,10 @@ C_SOURCES += $(GECKOSDK)/platform/Device/SiliconLabs/EFR32FG13P/Source/system_ef
 LDSCRIPT ?= ldscript.ld
 
 # RAIL library
-C_INCLUDES += -I$(GECKOSDK)/platform/radio/rail_lib/common
-C_INCLUDES += -I$(GECKOSDK)/platform/radio/rail_lib/chip/efr32/efr32xg1x
-LIBDIR += -L$(GECKOSDK)/platform/radio/rail_lib/autogen/librail_release
-LIBS += -lrail_efr32xg13_gcc_release
+#C_INCLUDES += -I$(GECKOSDK)/platform/radio/rail_lib/common
+#C_INCLUDES += -I$(GECKOSDK)/platform/radio/rail_lib/chip/efr32/efr32xg1x
+#LIBDIR += -L$(GECKOSDK)/platform/radio/rail_lib/autogen/librail_release
+#LIBS += -lrail_efr32xg13_gcc_release
 
 # Processor core
 MCU = -mcpu=cortex-m4 -mthumb
@@ -142,6 +145,10 @@ SZ = $(PREFIX)size
 HEX = $(CP) -O ihex
 BIN = $(CP) -O binary -S
 
+GEN = src/first_stage_main.h
+#BTLHEX = $(GECKOSDK)/platform/bootloader/build/first_stage/gcc/first_stage_btl_efx32xg13_second_btl_in_main/first_stage.s37 
+#BTLHEX = first_stage_btl_efx32xg13.s37
+BTLHEX = $(GECKOSDK)/platform/bootloader/build/first_stage/gcc/first_stage_btl_efx32xg13/first_stage.s37
 
 #######################################
 # Build targets and commands
@@ -158,13 +165,20 @@ vpath %.c $(sort $(dir $(C_SOURCES)))
 OBJECTS += $(addprefix $(BUILD_DIR)/,$(notdir $(ASM_SOURCES:.S=.o)))
 vpath %.S $(sort $(dir $(ASM_SOURCES)))
 
+#	objcopy -I srec -O binary $(BTLHEX) first_stage.bin
+$(GEN):
+	dd if=dummy_boot.bin of=first_stage.bin bs=32 count=1
+	echo "/***/" >$@
+	echo -n "__attribute__((__section__(\".silabs\"))) " >>$@
+	xxd -c 16 -i first_stage.bin >>$@
+
 $(BUILD_DIR)/%.o: %.c Makefile | $(BUILD_DIR)
 	$(CC) -c $(CFLAGS) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(notdir $(<:.c=.lst)) $< -o $@
 
 $(BUILD_DIR)/%.o: %.S Makefile | $(BUILD_DIR)
 	$(AS) -c $(CFLAGS) $< -o $@
 
-$(BUILD_DIR)/$(TARGET).elf: $(OBJECTS) Makefile
+$(BUILD_DIR)/$(TARGET).elf: $(GEN) $(OBJECTS) Makefile
 	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
 	$(SZ) $@
 

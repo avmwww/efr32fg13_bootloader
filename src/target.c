@@ -63,8 +63,7 @@ static inline void USART_RX_IRQHandler(USART_TypeDef *usart, int num)
 
 	if (flags & USART_IEN_RXDATAV)
 		usart_rx_irq(num);
-
-	//USART_IntClear(usart, flags);
+	USART_IntClear(usart, flags);
 }
 
 static inline void USART_TX_IRQHandler(USART_TypeDef *usart, int num)
@@ -78,7 +77,7 @@ static inline void USART_TX_IRQHandler(USART_TypeDef *usart, int num)
 	if (flags & USART_IEN_TXC)
 		usart_tx_complete_irq(num);
 
-	//USART_IntClear(usart, flags);
+	USART_IntClear(usart, flags);
 }
 
 /*
@@ -160,6 +159,9 @@ usart_hw_t *usart_hw_init(int num)
 	/* Configure and enable USART */
 	CMU_ClockEnable(hw->clock, true);
 	USART_InitAsync(hw->regs, &init);
+
+	USART_IntClear(hw->regs, USART_IEN_RXDATAV | USART_IEN_RXOF |
+			USART_IEN_TXBL | USART_IEN_TXC);
 
 	/* Enable NVIC USART sources */
 	NVIC_ClearPendingIRQ(hw->rx.irq);

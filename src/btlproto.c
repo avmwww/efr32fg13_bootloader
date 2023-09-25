@@ -20,25 +20,6 @@ static uint8_t crc8_cal_buf(const void *data, int len)
 	return crc;
 }
 
-#if 0
-static void btl_write(uint8_t status, const void *data, unsigned int len)
-{
-	uint8_t buf[BTL_MAX_PKT_SIZE];
-	btl_packet_t *pkt = (btl_packet_t *)buf;
-
-	pkt->prefix = BTL_PKT_PREXIX;
-	pkt->size = len;
-	pkt->cmd = BTL_CMD_INFO | BTL_PKT_REPLY;
-	pkt->status = status;
-
-	memcpy(pkt->data, data, len);
-
-	btl_packet_crc(pkt) = crc8_cal_buf(btl_start_crc(pkt), btl_size_crc(pkt));
-
-	btl_write_pkt(pkt, btl_size_pkt(pkt));
-}
-#endif
-
 static void btl_make_header(btl_packet_t *pkt, uint8_t status, uint8_t size)
 {
 	pkt->prefix = BTL_PKT_PREXIX;
@@ -75,6 +56,12 @@ static int btl_cmd_read(btl_packet_t *pkt)
 	return flash_read(pkt->addr, pkt->data, BTL_MAX_DATA_SIZE);
 }
 
+static uint32_t btl_flash_size(btl_packet_t *pkt)
+{
+	return ((uint32_t )pkt->data[0]) | ((uint32_t)pkt->data[1] << 8) |
+		((uint32_t)pkt->data[2] << 16) | ((uint32_t)pkt->data[3] << 24);
+}
+
 static int btl_cmd_write(btl_packet_t *pkt)
 {
 	if (btl_area(pkt->addr, pkt->size))
@@ -82,22 +69,36 @@ static int btl_cmd_write(btl_packet_t *pkt)
 
 	if (flash_write(pkt->addr, pkt->data, pkt->size) < 0)
 		return -1;
+
 	return 0;
 }
 
 static int btl_cmd_erase(btl_packet_t *pkt)
 {
-	if (btl_area(pkt->addr, pkt->size))
+	uint32_t size = btl_flash_size(pkt);
+
+	if (size == 0)
+		return 0;
+
+	if (btl_area(pkt->addr, size))
 		return -1;
 
-	if (flash_erase(pkt->addr, pkt->size) < 0)
+	if (flash_erase(pkt->addr, size) < 0)
 		return -1;
 
 	return 0;
 }
 
-int btl_handle_packet(btl_packet_t *pkt)
+static int btl_cmd_reset(btl_packet_t *pkt)
 {
+	(void)pkt;
+	__NVIC_SystemReset();
+	return 0;
+}
+
+int btl_handle_packet(void *buf)
+{
+	btl_packet_t *pkt = buf;
 	uint8_t crc = crc8_cal_buf(btl_start_crc(pkt), btl_size_crc(pkt));
 	int sz = -1;
 
@@ -117,6 +118,9 @@ int btl_handle_packet(btl_packet_t *pkt)
 		case BTL_CMD_ERASE:
 			sz = btl_cmd_erase(pkt);
 			break;
+		case BTL_CMD_RESET:
+			sz = btl_cmd_reset(pkt);
+			break;
 		default:
 			break;
 	}
@@ -127,6 +131,36 @@ int btl_handle_packet(btl_packet_t *pkt)
 		btl_make_header(pkt, BTL_STATUS_OK, sz);
 
 	btl_packet_crc(pkt) = crc8_cal_buf(btl_start_crc(pkt), btl_size_crc(pkt));
-	return sz;
+	return btl_size_pkt(pkt);
+}
+
+int btl_read_byte(char c, void *buf, unsigned int len)
+{
+	uint8_t *p = buf;
+	btl_packet_t *pkt = buf;
+
+	p[len] = c;
+
+	if (len == 0) {
+		/* prefix */
+		if (c != BTL_PKT_PREXIX)
+			return 0;
+		return 1;
+	}
+
+	len++;
+	if (len < sizeof(btl_packet_t)) {
+		/* header */
+		return len;
+	}
+
+	if (pkt->size > BTL_MAX_DATA_SIZE)
+		return 0;
+
+	if (len < btl_size_pkt(pkt))
+		return len;
+
+	/* packet complete */
+	return 256;
 }
 

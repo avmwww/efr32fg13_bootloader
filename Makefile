@@ -69,6 +69,7 @@ EMULIB_SRCS = em_cmu.c \
 	      em_timer.c \
 	      em_emu.c \
 	      em_usart.c \
+	      em_msc.c \
 
 C_SOURCES += $(addprefix $(GECKOSDK)/platform/emlib/src/,$(EMULIB_SRCS))
 
@@ -145,7 +146,6 @@ SZ = $(PREFIX)size
 HEX = $(CP) -O ihex
 BIN = $(CP) -O binary -S
 
-GEN = src/first_stage_main.h
 #BTLHEX = $(GECKOSDK)/platform/bootloader/build/first_stage/gcc/first_stage_btl_efx32xg13_second_btl_in_main/first_stage.s37 
 #BTLHEX = first_stage_btl_efx32xg13.s37
 BTLHEX = $(GECKOSDK)/platform/bootloader/build/first_stage/gcc/first_stage_btl_efx32xg13/first_stage.s37
@@ -165,20 +165,13 @@ vpath %.c $(sort $(dir $(C_SOURCES)))
 OBJECTS += $(addprefix $(BUILD_DIR)/,$(notdir $(ASM_SOURCES:.S=.o)))
 vpath %.S $(sort $(dir $(ASM_SOURCES)))
 
-#	objcopy -I srec -O binary $(BTLHEX) first_stage.bin
-$(GEN):
-	dd if=dummy_boot.bin of=first_stage.bin bs=32 count=1
-	echo "/***/" >$@
-	echo -n "__attribute__((__section__(\".silabs\"))) " >>$@
-	xxd -c 16 -i first_stage.bin >>$@
-
 $(BUILD_DIR)/%.o: %.c Makefile | $(BUILD_DIR)
 	$(CC) -c $(CFLAGS) -Wa,-a,-ad,-alms=$(BUILD_DIR)/$(notdir $(<:.c=.lst)) $< -o $@
 
 $(BUILD_DIR)/%.o: %.S Makefile | $(BUILD_DIR)
 	$(AS) -c $(CFLAGS) $< -o $@
 
-$(BUILD_DIR)/$(TARGET).elf: $(GEN) $(OBJECTS) Makefile
+$(BUILD_DIR)/$(TARGET).elf: $(OBJECTS) Makefile
 	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
 	$(SZ) $@
 

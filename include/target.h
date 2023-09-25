@@ -25,6 +25,11 @@
 #define JP2_PORT			gpioPortF
 #define JP2_PIN				2
 
+#define jp1_value()			GPIO_PinInGet(JP1_PORT, JP1_PIN)
+#define jp2_value()			GPIO_PinInGet(JP2_PORT, JP2_PIN)
+
+#define boot_pin()			jp1_value()
+
 #define led_red_on()			GPIO_PinOutSet(LED_RED_PORT, LED_RED_PIN)
 #define led_red_off()			GPIO_PinOutClear(LED_RED_PORT, LED_RED_PIN)
 #define led_red_toggle()		GPIO_PinOutToggle(LED_RED_PORT, LED_RED_PIN)
@@ -181,6 +186,10 @@ void timer_sleep_us(uint32_t us);
 
 #define BTL_VERSION_STR		"BTL V" XSTR(BTL_VERSION_MAJOR) "." XSTR(BTL_VERSION_MINOR)
 
+
+int btl_handle_packet(void *buf);
+
+int btl_read_byte(char c, void *buf, unsigned int len);
 
 
 

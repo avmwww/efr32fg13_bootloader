@@ -16,7 +16,9 @@
 #include "target.h"
 #include "usart.h"
 #include "timer.h"
+#include "btlproto.h"
 
+#define USART_CTRL_PORT		0
 #define USART_BUF_LEN		256
 #define USART_BAUD_RATE		115200
 
@@ -33,11 +35,7 @@ struct btl_info_s {
 struct bootloader_s {
 	struct timer *timer;
 	struct btl_info_s *info;
-	struct {
-		void *in;
-		void *out;
-	} buf;
-	void *cmd;
+	void *cmd_buf;
 };
 
 static int led_timer(void *arg)
@@ -49,12 +47,7 @@ static int led_timer(void *arg)
 
 static void usart_puts(int num, const char *str)
 {
-	//usart_write_buf(num, str, strlen(str));
-	int n = strlen(str);
-
-	while (n--) {
-		usart_write(num, *str++);
-	}
+	usart_write_buf(num, str, strlen(str));
 }
 
 #define CMD_BUF_LEN		256
@@ -70,14 +63,13 @@ static void system_failure(void)
 static void system_init(struct bootloader_s *bt)
 {
 	bt->info = (struct btl_info_s *)__btl_info_start__;
-	bt->buf.in = malloc(CMD_BUF_LEN);
-	bt->buf.out = malloc(CMD_BUF_LEN);
+	bt->cmd_buf = malloc(CMD_BUF_LEN);
 
-	if (!bt->buf.out || !bt->buf.in)
+	if (!bt->cmd_buf)
 		system_failure();
 
-	usart_init(0, USART0_BUF_LEN, USART0_BUF_LEN);
-	usart_set_baudrate(0, USART_BAUD_RATE);
+	usart_init(USART_CTRL_PORT, USART0_BUF_LEN, USART0_BUF_LEN);
+	usart_set_baudrate(USART_CTRL_PORT, USART_BAUD_RATE);
 
 	bt->timer = timer_create();
 
@@ -91,27 +83,41 @@ static void system_run(struct bootloader_s *bt)
 	uint32_t magic = bt->info->magic;
 	int len;
 
-	usart_puts(0, "\r\n" BTL_VERSION_STR "\r\n");
+	usart_puts(USART_CTRL_PORT, "\r\n" BTL_VERSION_STR "\r\n");
 
-	usart_puts(0, "Reboot cause: ");
-	if (magic == BTL_MAGIC) {
-		usart_puts(0, "soft");
+	usart_puts(USART_CTRL_PORT, "Reboot cause: ");
+	if (magic == BTL_MAGIC || boot_pin() == 0) {
+		usart_puts(USART_CTRL_PORT, "soft");
+		bt->info->magic = 0;
 	} else {
-		usart_puts(0, "hard");
+		usart_puts(USART_CTRL_PORT, "hard\r\n");
+		timer_sleep_ms(10);
 		/* boot application */
-		bt->info->magic = BTL_MAGIC;
 		boot_app();
 	}
 
-	usart_puts(0, "\r\n");
-
+	usart_puts(USART_CTRL_PORT, "\r\n");
 
 	led_red_on();
 	led_green_off();
+	usart_rx_enable(USART_CTRL_PORT);
 
+	len = 0;
 	for (;;) {
-		if ((len = usart_read_buf(0, bt->buf.in, 16)) > 0)
-			usart_write_buf(0, bt->buf.in, len);
+		int c = usart_read(USART_CTRL_PORT);
+
+		if (c >= 0) {
+			len = btl_read_byte(c, bt->cmd_buf, len);
+			if (len == 256) {
+				/* complete */
+				len = btl_handle_packet(bt->cmd_buf);
+				if (len > 0)
+					usart_write_buf(USART_CTRL_PORT, bt->cmd_buf, len);
+
+				len = 0;
+			}
+
+		}
 
 		timer_handle(bt->timer);
 	}

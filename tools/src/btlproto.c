@@ -31,9 +31,9 @@ static uint8_t crc8_cal_buf(const void *data, int len)
 	return crc;
 }
 
-static void btl_dump_pkt(const btl_packet_t *pkt)
+static void btl_dump_pkt(const char *prefix, const btl_packet_t *pkt)
 {
-	dbg("PACKET\n");
+	dbg("=%s=\n", prefix);
 	dbg("Prefix  : %02x(%c)\n", pkt->prefix, pkt->prefix);
 	dbg("Size    : %02x(%d)\n", pkt->size, pkt->size);
 	dbg("Command : %02x\n", pkt->cmd);
@@ -62,7 +62,7 @@ int btl_write(int fd, uint8_t cmd, uint8_t status, uint32_t addr,
 
 	btl_packet_crc(pkt) = crc8_cal_buf(btl_start_crc(pkt), btl_size_crc(pkt));
 
-	dbg("Send %ld bytes\n", btl_size_pkt(pkt));
+	btl_dump_pkt("TX", pkt);
 	dbg_dump_hex(pkt, btl_size_pkt(pkt), 0);
 
 	return write(fd, pkt, btl_size_pkt(pkt));
@@ -79,6 +79,7 @@ static int btl_read_byte(int fd, void *buf, unsigned int len)
 		return err;
 
 	p[len] = c;
+	dbg("R: %02x\n", c);
 
 	if (len == 0) {
 		/* prefix */
@@ -97,7 +98,8 @@ static int btl_read_byte(int fd, void *buf, unsigned int len)
 		return len;
 
 	/* packet complete */
-	btl_dump_pkt(pkt);
+	btl_dump_pkt("RX", pkt);
+	dbg_dump_hex(pkt, btl_size_pkt(pkt), 0);
 
 	crc = crc8_cal_buf(btl_start_crc(pkt), btl_size_crc(pkt));
 	if (btl_packet_crc(pkt) != crc) {
@@ -128,6 +130,7 @@ int btl_read(int fd, uint8_t *cmd, uint8_t *status, uint32_t *addr, void *data)
 				return -1;
 		}
 	}
+
 	if (data)
 		memcpy(data, pkt->data, pkt->size);
 	if (cmd)

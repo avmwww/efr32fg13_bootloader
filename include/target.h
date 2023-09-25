@@ -187,11 +187,6 @@ void timer_sleep_us(uint32_t us);
 #define BTL_VERSION_STR		"BTL V" XSTR(BTL_VERSION_MAJOR) "." XSTR(BTL_VERSION_MINOR)
 
 
-int btl_handle_packet(void *buf);
-
-int btl_read_byte(char c, void *buf, unsigned int len);
-
-
 
 void dump_buf(const char *prefix, const void *buf, unsigned int len, int as);
 #include <stdio.h>

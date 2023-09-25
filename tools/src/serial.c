@@ -48,8 +48,18 @@ int serial_setup(int fd, unsigned int baud)
 		speed = B115200;
 	else if (baud <= 230400)
 		speed = B230400;
+	else if (baud <= 460800)
+		speed = B460800;
+	else if (baud <= 500000)
+		speed = B500000;
+	else if (baud <= 576000)
+		speed = B576000;
+	else if (baud <= 921600)
+		speed = B921600;
+	else if (baud <= 1000000)
+		speed = B1000000;
 	else
-		speed = B9600;
+		speed = B115200;
 
 	cfsetspeed(&t, speed);
 

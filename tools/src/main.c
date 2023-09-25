@@ -82,6 +82,26 @@ static int btl_transfer(int fd, uint8_t cmd, uint32_t addr,
 
 	return sz;
 }
+static void btl_set_u32(void *buf, uint32_t val)
+{
+	uint8_t *p = buf;
+
+	p[0] = (uint8_t)val;
+	p[1] = (uint8_t)(val >> 8);
+	p[2] = (uint8_t)(val >> 16);
+	p[3] = (uint8_t)(val >> 24);
+}
+
+static void bootloader_set_baud(struct btlctl_conf *cfg)
+{
+	int len;
+	uint8_t buf[4];
+
+	btl_set_u32(buf, cfg->baud);
+
+	if ((len = btl_transfer(cfg->fd, BTL_CMD_BAUD, 0, buf, 0, NULL)) < 0)
+		failure(errno, "Bootloader set baud failed");
+}
 
 static void bootloader_info(struct btlctl_conf *cfg)
 {
@@ -105,10 +125,7 @@ static void flash_erase(struct btlctl_conf *cfg, int len)
 	fflush(stdout);
 	fflush(stderr);
 	/* address */
-	buf[0] = (uint8_t)len;
-	buf[1] = (uint8_t)(len >> 8);
-	buf[2] = (uint8_t)(len >> 16);
-	buf[3] = (uint8_t)(len >> 24);
+	btl_set_u32(buf, len);
 	if (btl_transfer(cfg->fd, BTL_CMD_ERASE, cfg->addr, buf, 4, NULL) < 0)
 		failure(errno, "\nFlash erase failed");
 
@@ -185,8 +202,14 @@ int main(int argc, char **argv)
 	if ((conf.fd = serial_open(conf.dev)) < 0)
 		failure(errno, "Can't open serial port %s", conf.dev);
 
-	if (serial_setup(conf.fd, conf.baud) < 0)
+	if (serial_setup(conf.fd, BAUD_RATE_DEFAULT) < 0)
 		failure(errno, "Can't set serial port %s parameters", conf.dev);
+
+	if (conf.baud != BAUD_RATE_DEFAULT) {
+		bootloader_set_baud(&conf);
+		if (serial_setup(conf.fd, conf.baud) < 0)
+			failure(errno, "Can't set serial port %s parameters", conf.dev);
+	}
 
 	if (conf.info)
 		bootloader_info(&conf);

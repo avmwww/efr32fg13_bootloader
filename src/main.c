@@ -16,11 +16,13 @@
 #include "target.h"
 #include "usart.h"
 #include "timer.h"
-#include "btlproto.h"
+#include "btl.h"
 
 #define USART_CTRL_PORT		0
 #define USART_BUF_LEN		256
 #define USART_BAUD_RATE		115200
+
+__attribute__((__noreturn__)) void boot_app(void);
 
 //extern const uint32_t __btl_info_start__;
 #define __btl_info_start__		((void *)0x2000fff0)
@@ -35,7 +37,7 @@ struct btl_info_s {
 struct bootloader_s {
 	struct timer *timer;
 	struct btl_info_s *info;
-	void *cmd_buf;
+	btl_if_t iface;
 };
 
 static int led_timer(void *arg)
@@ -63,10 +65,6 @@ static void system_failure(void)
 static void system_init(struct bootloader_s *bt)
 {
 	bt->info = (struct btl_info_s *)__btl_info_start__;
-	bt->cmd_buf = malloc(CMD_BUF_LEN);
-
-	if (!bt->cmd_buf)
-		system_failure();
 
 	usart_init(USART_CTRL_PORT, USART0_BUF_LEN, USART0_BUF_LEN);
 	usart_set_baudrate(USART_CTRL_PORT, USART_BAUD_RATE);
@@ -76,12 +74,47 @@ static void system_init(struct bootloader_s *bt)
 	timer_add(bt->timer, led_timer, bt, TIMER_MS(500), true);
 }
 
-__attribute__((__noreturn__)) void boot_app(void);
+static void usart_hanle(struct bootloader_s *bt)
+{
+	int c = usart_read(USART_CTRL_PORT);
+	int len;
+	int err;
+
+	if (c < 0)
+		return;
+
+	err = btl_read_byte(&bt->iface, c);
+	if (err < 0) {
+		bt->iface.len = 0;
+		return;
+	}
+
+	if (err == 0)
+		return;
+
+	/* complete */
+	len = btl_handle_packet(&bt->iface);
+	if (len > 0)
+		usart_write_buf(USART_CTRL_PORT, bt->iface.buf, len);
+
+	if (bt->iface.reset) {
+		timer_sleep_ms(20);
+		__NVIC_SystemReset();
+	}
+
+	if (bt->iface.baud) {
+		timer_sleep_ms(20);
+		usart_set_baudrate(USART_CTRL_PORT, bt->iface.baud);
+	}
+
+	bt->iface.baud = 0;
+	bt->iface.reset = 0;
+	bt->iface.len = 0;
+}
 
 static void system_run(struct bootloader_s *bt)
 {
 	uint32_t magic = bt->info->magic;
-	int len;
 
 	usart_puts(USART_CTRL_PORT, "\r\n" BTL_VERSION_STR "\r\n");
 
@@ -102,22 +135,8 @@ static void system_run(struct bootloader_s *bt)
 	led_green_off();
 	usart_rx_enable(USART_CTRL_PORT);
 
-	len = 0;
 	for (;;) {
-		int c = usart_read(USART_CTRL_PORT);
-
-		if (c >= 0) {
-			len = btl_read_byte(c, bt->cmd_buf, len);
-			if (len == 256) {
-				/* complete */
-				len = btl_handle_packet(bt->cmd_buf);
-				if (len > 0)
-					usart_write_buf(USART_CTRL_PORT, bt->cmd_buf, len);
-
-				len = 0;
-			}
-
-		}
+		usart_hanle(bt);
 
 		timer_handle(bt->timer);
 	}

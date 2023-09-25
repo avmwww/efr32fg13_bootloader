@@ -63,7 +63,7 @@ static inline void USART_RX_IRQHandler(USART_TypeDef *usart, int num)
 
 	if (flags & USART_IEN_RXDATAV)
 		usart_rx_irq(num);
-	USART_IntClear(usart, flags);
+	//USART_IntClear(usart, flags);
 }
 
 static inline void USART_TX_IRQHandler(USART_TypeDef *usart, int num)
@@ -77,7 +77,7 @@ static inline void USART_TX_IRQHandler(USART_TypeDef *usart, int num)
 	if (flags & USART_IEN_TXC)
 		usart_tx_complete_irq(num);
 
-	USART_IntClear(usart, flags);
+	//USART_IntClear(usart, flags);
 }
 
 /*

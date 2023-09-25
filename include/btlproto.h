@@ -40,6 +40,7 @@ typedef struct btl_packet_s {
 #define BTL_CMD_WRITE		0x02
 #define BTL_CMD_READ		0x03
 #define BTL_CMD_VERIFY		0x04
+#define BTL_CMD_BAUD		0x05
 #define BTL_CMD_RESET		0xff
 
 #define BTL_STATUS_OK		0x00

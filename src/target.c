@@ -57,9 +57,7 @@ static usart_hw_t usart_hw[2] = {
 
 static inline void USART_RX_IRQHandler(USART_TypeDef *usart, int num)
 {
-	uint32_t flags = USART_IntGet(usart);
-
-	flags &= USART_IEN_RXOF | USART_IEN_RXDATAV;
+	uint32_t flags = USART_IntGetEnabled(usart);
 
 	if (flags & USART_IEN_RXDATAV)
 		usart_rx_irq(num);
@@ -68,16 +66,12 @@ static inline void USART_RX_IRQHandler(USART_TypeDef *usart, int num)
 
 static inline void USART_TX_IRQHandler(USART_TypeDef *usart, int num)
 {
-	uint32_t flags = USART_IntGet(usart);
-
-	flags &= USART_IEN_TXBL | USART_IEN_TXC;;
+	uint32_t flags = USART_IntGetEnabled(usart);
 
 	if (flags & USART_IEN_TXBL)
 		usart_tx_irq(num);
 	if (flags & USART_IEN_TXC)
 		usart_tx_complete_irq(num);
-
-	//USART_IntClear(usart, flags);
 }
 
 /*
@@ -119,7 +113,7 @@ static void usart_configure_pins(usart_hw_t *hw)
 	CMU_ClockEnable(cmuClock_GPIO, true);
 
 	/* Configure VCOM transmit pin to board controller as an output */
-	GPIO_PinModeSet(hw->tx.port, hw->tx.pin, gpioModePushPull, 1);
+	GPIO_PinModeSet(hw->tx.port, hw->tx.pin, gpioModeWiredAndPullUp, 0);
 
 	/* Configure VCOM reeive pin from board controller as an input */
 	GPIO_PinModeSet(hw->rx.port, hw->rx.pin, gpioModeInput, 0);
@@ -170,7 +164,6 @@ usart_hw_t *usart_hw_init(int num)
 	NVIC_EnableIRQ(hw->tx.irq);
 
 	/* inverted */
-
 	if (hw->rx.inverted)
 		hw->regs->CTRL |= USART_CTRL_RXINV;
 	if (hw->tx.inverted)

@@ -37,6 +37,12 @@ struct btl_info_s {
 struct bootloader_s {
 	struct timer *timer;
 	struct btl_info_s *info;
+	struct {
+		uint32_t baud;
+		int num;
+		uint32_t last_time;
+	} usart;
+	uint32_t clock;
 	btl_if_t iface;
 };
 
@@ -50,6 +56,31 @@ static int led_timer(void *arg)
 static void usart_puts(int num, const char *str)
 {
 	usart_write_buf(num, str, strlen(str));
+}
+
+static void usart_putd(int num, unsigned int d)
+{
+	char buf[16];
+	int i;
+
+	buf[0] = '0';
+	buf[1] = '\0';
+
+	/* reverse digits */
+	i = 0;
+	while (d) {
+		buf[i] = (d % 10) + '0';
+		i++;
+		d /= 10;
+	}
+	if (i == 0) {
+		usart_puts(num, buf);
+	} else {
+		while (i) {
+			usart_write(num, buf[i - 1]);
+			i--;
+		}
+	}
 }
 
 #define CMD_BUF_LEN		256
@@ -66,22 +97,32 @@ static void system_init(struct bootloader_s *bt)
 {
 	bt->info = (struct btl_info_s *)__btl_info_start__;
 
-	usart_init(USART_CTRL_PORT, USART0_BUF_LEN, USART0_BUF_LEN);
-	usart_set_baudrate(USART_CTRL_PORT, USART_BAUD_RATE);
+	usart_init(bt->usart.num, USART0_BUF_LEN, USART0_BUF_LEN);
+	usart_set_baudrate(bt->usart.num, bt->usart.baud);
+	bt->usart.baud = usart_get_baudrate(bt->usart.num);
+	bt->clock = SystemCoreClockGet();
 
 	bt->timer = timer_create();
 
 	timer_add(bt->timer, led_timer, bt, TIMER_MS(500), true);
 }
 
-static void usart_hanle(struct bootloader_s *bt)
+static void usart_handle(struct bootloader_s *bt)
 {
-	int c = usart_read(USART_CTRL_PORT);
 	int len;
 	int err;
+	int c = usart_read(bt->usart.num);
+	uint32_t ms = timer_get_ms();
 
-	if (c < 0)
+	if (c < 0) {
+		if ((ms - bt->usart.last_time) > 1) {
+			/* reset input bytes by 1 mS timeout */
+			bt->usart.last_time = ms;
+			bt->iface.len = 0;
+		}
 		return;
+	}
+	bt->usart.last_time = ms;
 
 	err = btl_read_byte(&bt->iface, c);
 	if (err < 0) {
@@ -95,16 +136,18 @@ static void usart_hanle(struct bootloader_s *bt)
 	/* complete */
 	len = btl_handle_packet(&bt->iface);
 	if (len > 0)
-		usart_write_buf(USART_CTRL_PORT, bt->iface.buf, len);
+		usart_write_buf(bt->usart.num, bt->iface.buf, len);
 
 	if (bt->iface.reset) {
+		/* system reset requested */
 		timer_sleep_ms(20);
 		__NVIC_SystemReset();
 	}
 
 	if (bt->iface.baud) {
+		/* change baud rate requested */
 		timer_sleep_ms(20);
-		usart_set_baudrate(USART_CTRL_PORT, bt->iface.baud);
+		usart_set_baudrate(bt->usart.num, bt->iface.baud);
 	}
 
 	bt->iface.baud = 0;
@@ -112,31 +155,42 @@ static void usart_hanle(struct bootloader_s *bt)
 	bt->iface.len = 0;
 }
 
+static void btl_print_info(struct bootloader_s *bt)
+{
+	usart_puts(bt->usart.num, "\r\n" BTL_VERSION_STR "\r\n");
+	usart_puts(bt->usart.num, "CLOCK: ");
+	usart_putd(bt->usart.num, bt->clock);
+	usart_puts(bt->usart.num, ", ");
+	usart_puts(bt->usart.num, "BAUD: ");
+	usart_putd(bt->usart.num, bt->usart.baud);
+	usart_puts(bt->usart.num, "\r\n");
+}
+
 static void system_run(struct bootloader_s *bt)
 {
 	uint32_t magic = bt->info->magic;
 
-	usart_puts(USART_CTRL_PORT, "\r\n" BTL_VERSION_STR "\r\n");
+	btl_print_info(bt);
 
-	usart_puts(USART_CTRL_PORT, "Reboot cause: ");
+	usart_puts(bt->usart.num, "Reboot cause: ");
 	if (magic == BTL_MAGIC || boot_pin() == 0) {
-		usart_puts(USART_CTRL_PORT, "soft");
+		usart_puts(bt->usart.num, "soft");
 		bt->info->magic = 0;
 	} else {
-		usart_puts(USART_CTRL_PORT, "hard\r\n");
+		usart_puts(bt->usart.num, "hard\r\n");
 		timer_sleep_ms(10);
 		/* boot application */
 		boot_app();
 	}
 
-	usart_puts(USART_CTRL_PORT, "\r\n");
+	usart_puts(bt->usart.num, "\r\n");
 
 	led_red_on();
 	led_green_off();
-	usart_rx_enable(USART_CTRL_PORT);
+	usart_rx_enable(bt->usart.num);
 
 	for (;;) {
-		usart_hanle(bt);
+		usart_handle(bt);
 
 		timer_handle(bt->timer);
 	}
@@ -156,6 +210,9 @@ int main(void)
 		system_failure();
 
 	memset(bt, 0, sizeof(struct bootloader_s));
+
+	bt->usart.num = USART_CTRL_PORT;
+	bt->usart.baud = USART_BAUD_RATE;
 
 	system_init(bt);
 

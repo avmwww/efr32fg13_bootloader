@@ -89,7 +89,7 @@ C_INCLUDES += -I$(GECKOSDK)/platform/common/inc
 
 # Define for part number
 C_DEFS += -DEFR32FG13P231F512GM32=1 \
-	  -D__HEAP_SIZE=0x00001000
+	  -D__HEAP_SIZE=0x00001000 -D__STACK_SIZE=0x00000800
 
 # Include paths
 C_INCLUDES += -I$(GECKOSDK)/platform/Device/SiliconLabs/EFR32FG13P/Include

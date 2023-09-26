@@ -33,6 +33,7 @@ struct btlctl_conf {
 	char *flash;
 	int addr;
 	int skip;
+	int reset;
 };
 
 #define BTLCTL_OPT(s, l, d, t, o, v) \
@@ -50,6 +51,7 @@ static struct prog_option btlctl_options[] = {
 	BTLCTL_OPT_STR('f', "flash", "flash binary file", flash),
 	BTLCTL_OPT_INT('a', "addr", "address of flash offset, default 0", addr),
 	BTLCTL_OPT_NO('s', "skip", "skip erase of flash", skip, 1),
+	BTLCTL_OPT_NO('r', "reset", "reset bootloader and run app", reset, 1),
 	PROG_END,
 };
 
@@ -101,6 +103,13 @@ static void bootloader_set_baud(struct btlctl_conf *cfg)
 
 	if ((len = btl_transfer(cfg->fd, BTL_CMD_BAUD, 0, buf, 0, NULL)) < 0)
 		failure(errno, "Bootloader set baud failed");
+}
+
+static void bootloader_reset(struct btlctl_conf *cfg)
+{
+	printf("Reseting system ... ");
+	btl_write(cfg->fd, BTL_CMD_RESET, 0, 0, NULL, 0);
+	printf("\nDone\n");
 }
 
 static void bootloader_info(struct btlctl_conf *cfg)
@@ -173,9 +182,7 @@ static void flash_file(struct btlctl_conf *cfg)
 	}
 	printf("\nDone\n");
 
-	printf("Reseting system ... ");
-	btl_write(cfg->fd, BTL_CMD_RESET, 0, 0, NULL, 0);
-	printf("\nDone\n");
+	bootloader_reset(cfg);
 }
 
 int main(int argc, char **argv)
@@ -216,6 +223,9 @@ int main(int argc, char **argv)
 
 	if (conf.flash)
 		flash_file(&conf);
+
+	if (conf.reset)
+		bootloader_reset(&conf);
 
 	serial_close(conf.fd);
 	exit(EXIT_SUCCESS);

@@ -113,7 +113,7 @@ static void usart_configure_pins(usart_hw_t *hw)
 	CMU_ClockEnable(cmuClock_GPIO, true);
 
 	/* Configure VCOM transmit pin to board controller as an output */
-	GPIO_PinModeSet(hw->tx.port, hw->tx.pin, gpioModeWiredAndPullUp, 0);
+	GPIO_PinModeSet(hw->tx.port, hw->tx.pin, gpioModePushPull, 1);
 
 	/* Configure VCOM reeive pin from board controller as an input */
 	GPIO_PinModeSet(hw->rx.port, hw->rx.pin, gpioModeInput, 0);
@@ -124,7 +124,7 @@ static void usart_configure_pins(usart_hw_t *hw)
 
 void usart_hw_half_duplex_tx(usart_hw_t *hw)
 {
-	GPIO_PinModeSet(hw->rx.port, hw->rx.pin, gpioModeWiredAndPullUp, 0);
+	GPIO_PinModeSet(hw->rx.port, hw->rx.pin, gpioModePushPull, 1);
 	GPIO_PinModeSet(hw->tx.port, hw->tx.pin, gpioModeInput, 0);
 
 	hw->regs->ROUTEPEN &= ~(USART_ROUTEPEN_RXPEN | USART_ROUTEPEN_TXPEN);
@@ -134,7 +134,7 @@ void usart_hw_half_duplex_tx(usart_hw_t *hw)
 
 void usart_hw_half_duplex_rx(usart_hw_t *hw)
 {
-	GPIO_PinModeSet(hw->tx.port, hw->tx.pin, gpioModeWiredAndPullUp, 0);
+	GPIO_PinModeSet(hw->tx.port, hw->tx.pin, gpioModePushPull, 1);
 	GPIO_PinModeSet(hw->rx.port, hw->rx.pin, gpioModeInput, 0);
 
 	hw->regs->ROUTEPEN &= ~(USART_ROUTEPEN_RXPEN | USART_ROUTEPEN_TXPEN);

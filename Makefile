@@ -8,7 +8,7 @@ BUILD_DIR = build
 # Optimization flags
 OPT = -Og
 
-DEBUG = 1
+DEBUG =
 
 
 

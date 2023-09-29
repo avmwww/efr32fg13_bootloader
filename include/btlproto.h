@@ -71,4 +71,13 @@ static inline uint8_t crc8_calc(uint8_t crc, uint8_t a, uint8_t poly)
 #define BTL_ADDR		0xfe10000
 #define BTL_SIZE		0x4000
 
+//extern const uint32_t __btl_info_start__;
+#define __btl_info_start__		((void *)0x2000fff0)
+
+struct btl_info_s {
+	uint32_t magic;
+} __attribute__((__packed__));
+
+#define BTL_MAGIC		0xe2e4
+
 #endif

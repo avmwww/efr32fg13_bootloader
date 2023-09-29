@@ -24,15 +24,6 @@
 
 __attribute__((__noreturn__)) void boot_app(void);
 
-//extern const uint32_t __btl_info_start__;
-#define __btl_info_start__		((void *)0x2000fff0)
-
-struct btl_info_s {
-	uint32_t magic;
-};
-
-#define BTL_MAGIC		0xe2e4
-
 
 struct bootloader_s {
 	struct timer *timer;

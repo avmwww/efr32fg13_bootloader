@@ -5,21 +5,19 @@
 #include <stdint.h>
 #include <em_msc.h>
 
-#define PAGE_SIZE		2048
-
 int flash_erase(unsigned int addr, unsigned int len)
 {
-	addr &= ~(PAGE_SIZE - 1);
+	addr &= ~(FLASH_PAGE_SIZE - 1);
 
 	while (len) {
 		if (MSC_ErasePage((uint32_t *)addr) != mscReturnOk)
 			return -1;
-		if (len > PAGE_SIZE)
-			len -= PAGE_SIZE;
+		if (len > FLASH_PAGE_SIZE)
+			len -= FLASH_PAGE_SIZE;
 		else
 			len = 0;
 
-		addr += PAGE_SIZE;
+		addr += FLASH_PAGE_SIZE;
 	}
 	return 0;
 }

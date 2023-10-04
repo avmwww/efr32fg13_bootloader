@@ -171,6 +171,7 @@ void usart_hw_half_duplex_rx(usart_hw_t *hw);
 usart_hw_t *usart_hw_init(int num);
 
 void target_init(void);
+uint64_t taget_get_id(void);
 
 #define TIMER_TICK_HZ			1000
 uint32_t timer_get_us(void);

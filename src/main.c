@@ -16,10 +16,11 @@
 #include "target.h"
 #include "usart.h"
 #include "timer.h"
+#include "flash.h"
 #include "btl.h"
 
 #define USART_CTRL_PORT		0
-#define USART_BUF_LEN		256
+#define USART_BUF_LEN		512
 #define USART_BAUD_RATE		115200
 
 __attribute__((__noreturn__)) void boot_app(void);
@@ -47,6 +48,30 @@ static int led_timer(void *arg)
 static void usart_puts(int num, const char *str)
 {
 	usart_write_buf(num, str, strlen(str));
+}
+
+static void usart_puth(int num, uint64_t d)
+{
+	char buf[20];
+	const char *hextab = "0123456789ABCDEF";
+	int i;
+
+	buf[0] = '0';
+	buf[1] = '\0';
+
+	i = 0;
+	while (d) {
+		buf[i] = hextab[d & 0xf];
+		i++;
+		d >>= 4;
+	}
+
+	if (i == 0) {
+		usart_puts(num, buf);
+	} else {
+		while (i)
+			usart_write(num, buf[--i]);
+	}
 }
 
 static void usart_putd(int num, unsigned int d)
@@ -148,13 +173,31 @@ static void usart_handle(struct bootloader_s *bt)
 
 static void btl_print_info(struct bootloader_s *bt)
 {
+	uint64_t id;
+
+	id = taget_get_id();
 	usart_puts(bt->usart.num, "\r\n" BTL_VERSION_STR "\r\n");
+	usart_puts(bt->usart.num, "DEV ID: ");
+	usart_puth(bt->usart.num, id);
+	usart_puts(bt->usart.num, "\r\n");
+
 	usart_puts(bt->usart.num, "CLOCK: ");
 	usart_putd(bt->usart.num, bt->clock);
 	usart_puts(bt->usart.num, ", ");
 	usart_puts(bt->usart.num, "BAUD: ");
 	usart_putd(bt->usart.num, bt->usart.baud);
 	usart_puts(bt->usart.num, "\r\n");
+}
+
+static int btl_flash_app(struct bootloader_s *bt)
+{
+	if (flash_erase(0, BTL_APP_SIZE) < 0)
+		return -1;
+
+	if (flash_write(0, BTL_FLASH_APP_ADDR, BTL_APP_SIZE) < 0)
+		return -1;
+
+	return 0;
 }
 
 static void system_run(struct bootloader_s *bt)
@@ -167,9 +210,17 @@ static void system_run(struct bootloader_s *bt)
 	if (magic == BTL_MAGIC || boot_pin() == 0) {
 		usart_puts(bt->usart.num, "soft");
 		bt->info->magic = 0;
+		if (bt->info->target == BTL_FLASH_APP) {
+			bt->info->target = 0;
+			usart_puts(bt->usart.num, ", flash app\r\n");
+			if (btl_flash_app(bt) == 0) {
+				timer_sleep_ms(30);
+				boot_app();
+			}
+		}
 	} else {
 		usart_puts(bt->usart.num, "hard\r\n");
-		timer_sleep_ms(10);
+		timer_sleep_ms(30);
 		/* boot application */
 		boot_app();
 	}

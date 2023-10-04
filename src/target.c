@@ -295,6 +295,12 @@ static void gpio_init(void)
 	}
 }
 
+uint64_t taget_get_id(void)
+{
+	return ((uint64_t)(DEVINFO->EUI48H & 0xffff) << 32) |
+		DEVINFO->EUI48L;
+}
+
 void target_init(void)
 {
 	clocks_init();

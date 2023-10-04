@@ -191,10 +191,12 @@ static void btl_print_info(struct bootloader_s *bt)
 
 static int btl_flash_app(struct bootloader_s *bt)
 {
+	(void)bt;
+
 	if (flash_erase(0, BTL_APP_SIZE) < 0)
 		return -1;
 
-	if (flash_write(0, BTL_FLASH_APP_ADDR, BTL_APP_SIZE) < 0)
+	if (flash_write(0, (void *)BTL_FLASH_APP_ADDR, BTL_APP_SIZE) < 0)
 		return -1;
 
 	return 0;

@@ -183,7 +183,7 @@ void timer_sleep_us(uint32_t us);
 #define STR(s) #s
 
 #define BTL_VERSION_MAJOR	1
-#define BTL_VERSION_MINOR	0
+#define BTL_VERSION_MINOR	1
 
 #define BTL_VERSION_STR		"BTL V" XSTR(BTL_VERSION_MAJOR) "." XSTR(BTL_VERSION_MINOR) \
 	", date " __DATE__ ", time " __TIME__

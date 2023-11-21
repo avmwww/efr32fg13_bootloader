@@ -20,15 +20,20 @@ SRCMISC = $(PROGOPT_SRCS) $(UTILS_SRS)
 PROGOPT_SRCS = $(PROGOPT)/progopt.c
 UTILS_SRS = $(UTILS)/failure.c
 
-SRCS_UAVNETD = main.c \
+SRCS_BTL = main.c \
 	       btlproto.c \
-	       serial.c \
 	       zalloc.c \
 	       dump_hex.c \
 
-SRCS_UAVNETD += $(SRCMISC)
+ifeq ($(findstring mingw,$(CROSS_COMPILE)),)
+SRCS_BTL += serial.c
+else
+SRCS_BTL += serialport.c
+endif
 
-OBJS = $(addprefix $(OBJDIR)/, $(notdir $(SRCS_UAVNETD:.c=.o)))
+SRCS_BTL += $(SRCMISC)
+
+OBJS = $(addprefix $(OBJDIR)/, $(notdir $(SRCS_BTL:.c=.o)))
 
 CFLAGS ?= $(C_FLAGS)
 CFLAGS += -I$(INCDIR) -I$(PROGOPT) -I$(UTILS) -I../include -I.

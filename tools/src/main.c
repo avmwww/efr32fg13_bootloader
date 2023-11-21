@@ -13,7 +13,11 @@
 
 #include "failure.h"
 #include "progopt.h"
+#ifdef __MINGW32__
+#include "serialport.h"
+#else
 #include "serial.h"
+#endif
 #include "btlctl.h"
 
 //#include "debug.h"
@@ -21,13 +25,17 @@
 #define XINTSTR(s)		INTSTR(s)
 #define INTSTR(s)		#s
 
+#ifdef __MINGW32__
+#define BTLCTL_DEVICE_DEFAULT		"com1"
+#else
 #define BTLCTL_DEVICE_DEFAULT		"/dev/ttyUSB0"
+#endif
 #define BAUD_RATE_DEFAULT		115200
 
 struct btlctl_conf {
 	char *dev;
 	unsigned int baud;
-	int fd;
+	serial_handle fd;
 	int info;
 	int help;
 	char *flash;
@@ -64,7 +72,7 @@ static void usage(char *prog, struct prog_option *opt)
 	exit(EXIT_FAILURE);
 }
 
-static int btl_transfer(int fd, uint8_t cmd, uint32_t addr,
+static int btl_transfer(serial_handle fd, uint8_t cmd, uint32_t addr,
 		void *out, int out_len, void *in)
 {
 	uint8_t c, sz, st;

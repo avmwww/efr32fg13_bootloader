@@ -9,6 +9,12 @@
 
 #include "btlproto.h"
 
+#ifdef __MINGW32__
+#include "serialport.h"
+#else
+#include "serial.h"
+#endif
+
 #include "dump_hex.h"
 
 #ifdef DEBUG
@@ -42,7 +48,7 @@ static void btl_dump_pkt(const char *prefix, const btl_packet_t *pkt)
 	dbg("CRC     : %02x\n", btl_packet_crc(pkt));
 }
 
-int btl_write(int fd, uint8_t cmd, uint8_t status, uint32_t addr,
+int btl_write(serial_handle fd, uint8_t cmd, uint8_t status, uint32_t addr,
 		const void *data, unsigned int len)
 {
 	uint8_t buf[BTL_MAX_PKT_SIZE];
@@ -65,17 +71,17 @@ int btl_write(int fd, uint8_t cmd, uint8_t status, uint32_t addr,
 	btl_dump_pkt("TX", pkt);
 	dbg_dump_hex(pkt, btl_size_pkt(pkt), 0);
 
-	return write(fd, pkt, btl_size_pkt(pkt));
+	return serial_write(fd, pkt, btl_size_pkt(pkt));
 }
 
-static int btl_read_byte(int fd, void *buf, unsigned int len)
+static int btl_read_byte(serial_handle fd, void *buf, unsigned int len)
 {
 	uint8_t c, crc;
 	uint8_t *p = buf;
 	btl_packet_t *pkt = buf;
 	int err;
 
-	if ((err = read(fd, &c, 1)) != 1)
+	if ((err = serial_read(fd, &c, 1)) != 1)
 		return err;
 
 	p[len] = c;
@@ -110,7 +116,7 @@ static int btl_read_byte(int fd, void *buf, unsigned int len)
 	return 256;
 }
 
-int btl_read(int fd, uint8_t *cmd, uint8_t *status, uint32_t *addr, void *data)
+int btl_read(serial_handle fd, uint8_t *cmd, uint8_t *status, uint32_t *addr, void *data)
 {
 	int len;
 	int fail;

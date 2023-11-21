@@ -8,7 +8,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-
 void serial_close(int fd)
 {
 	if (fd < 0)
@@ -36,6 +35,10 @@ int serial_setup(int fd, unsigned int baud)
 		return -1;
 
 	cfmakeraw(&t);
+
+	/* Enable receiver, ignore RTS/CTS */
+	t.c_cflag |= CREAD | CLOCAL;
+
 
 	/* read with timeout */
 	t.c_cc[VMIN]  = 0;

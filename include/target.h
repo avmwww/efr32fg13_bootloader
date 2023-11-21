@@ -49,6 +49,9 @@
 #define modem_led_rx_on()		led_red_on()
 #define modem_led_rx_off()		led_red_off()
 
+#define led_flash_on			led_red_on
+#define led_flash_off			led_red_off
+
 #define USART0_PORT_TX			gpioPortB
 #define USART0_PIN_TX			15
 #define USART0_PORT_RX			gpioPortB

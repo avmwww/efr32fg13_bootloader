@@ -75,7 +75,7 @@ BOOL setupSerialPort(HANDLE hSerial, enum Baudrate baudrate, enum Stopbits stopb
 	}
 	COMMTIMEOUTS timeouts={0};
 	timeouts.ReadIntervalTimeout=50;
-	timeouts.ReadTotalTimeoutConstant=50;
+	timeouts.ReadTotalTimeoutConstant=1000;
 	timeouts.ReadTotalTimeoutMultiplier=10;
 	timeouts.WriteTotalTimeoutConstant=50;
 	timeouts.WriteTotalTimeoutMultiplier=10;

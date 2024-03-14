@@ -154,9 +154,13 @@ static void flash_file(struct btlctl_conf *cfg)
 	int len, sz;
 	uint8_t buf[BTL_MAX_DATA_SIZE];
 	uint32_t addr;
-	int bytes;
+	int bytes = 0;
 	struct stat stat;
+#ifdef __MINGW32__
+	int fd = open(cfg->flash, O_RDONLY | O_BINARY);
+#else
 	int fd = open(cfg->flash, O_RDONLY);
+#endif
 
 	if (fd < 0)
 		failure(errno, "Can't open flash file %s", cfg->flash);
@@ -177,6 +181,7 @@ static void flash_file(struct btlctl_conf *cfg)
 		if (sz <= 0)
 			break;
 
+		dbg("read from file %d bytes\n", sz);
 		if (btl_transfer(cfg->fd, BTL_CMD_WRITE, addr, buf, sz, NULL) < 0)
 			failure(errno, "\nFlash write failed");
 

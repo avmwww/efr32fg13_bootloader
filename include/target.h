@@ -16,10 +16,10 @@
 #define RF_TX_EN_PIN			14
 #define RF_RTS_PORT			gpioPortB
 #define RF_RTS_PIN			11
-#define LED_GREEN_PORT			gpioPortA
-#define LED_GREEN_PIN			0
-#define LED_RED_PORT			gpioPortA
-#define LED_RED_PIN			1
+#define LED_GREEN_PORT			gpioPortB
+#define LED_GREEN_PIN			11
+#define LED_RED_PORT			gpioPortB
+#define LED_RED_PIN			12
 #define JP1_PORT			gpioPortF
 #define JP1_PIN				3
 #define JP2_PORT			gpioPortF
@@ -52,15 +52,25 @@
 #define led_flash_on			led_red_on
 #define led_flash_off			led_red_off
 
-#define USART0_PORT_TX			gpioPortB
-#define USART0_PIN_TX			15
-#define USART0_PORT_RX			gpioPortB
-#define USART0_PIN_RX			14
+#define USART0_PORT_TX			gpioPortC
+#define USART0_PIN_TX			11
+#define USART0_ROUTE_TX			USART_ROUTELOC0_TXLOC_LOC16
+#define USART0_ROUTE_HALF_TX		USART_ROUTELOC0_TXLOC_LOC15
 
-#define USART1_PORT_TX			gpioPortC
-#define USART1_PIN_TX			11
-#define USART1_PORT_RX			gpioPortC
-#define USART1_PIN_RX			10
+#define USART0_PORT_RX			gpioPortC
+#define USART0_PIN_RX			10
+#define USART0_ROUTE_RX			USART_ROUTELOC0_RXLOC_LOC14
+#define USART0_ROUTE_HALF_RX		USART_ROUTELOC0_RXLOC_LOC15
+
+#define USART1_PORT_TX			gpioPortB
+#define USART1_PIN_TX			15
+#define USART1_ROUTE_TX			USART_ROUTELOC0_TXLOC_LOC10
+#define USART1_ROUTE_HALF_TX		USART_ROUTELOC0_TXLOC_LOC9
+
+#define USART1_PORT_RX			gpioPortB
+#define USART1_PIN_RX			14
+#define USART1_ROUTE_RX			USART_ROUTELOC0_RXLOC_LOC8
+#define USART1_ROUTE_HALF_RX		USART_ROUTELOC0_RXLOC_LOC9
 
 #define USART0_BUF_LEN			512
 #define USART1_BUF_LEN			512
@@ -186,7 +196,7 @@ void timer_sleep_us(uint32_t us);
 #define STR(s) #s
 
 #define BTL_VERSION_MAJOR	1
-#define BTL_VERSION_MINOR	1
+#define BTL_VERSION_MINOR	2
 
 #define BTL_VERSION_STR		"BTL V" XSTR(BTL_VERSION_MAJOR) "." XSTR(BTL_VERSION_MINOR) \
 	", date " __DATE__ ", time " __TIME__

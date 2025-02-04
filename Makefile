@@ -1,7 +1,7 @@
 # Makefile for EFR32FG13 bootloader using the Gecko SDK
 
 # Name of the binary
-TARGET = efr32fg13
+PROJECTNAME = modem_boot
 
 BUILD_DIR = build
 
@@ -81,6 +81,23 @@ C_INCLUDES += -I$(GECKOSDK)/platform/common/inc
 #C_INCLUDES += -I$(GECKOSDK)/platform/emdrv/common/inc
 #C_SOURCES += $(wildcard $(GECKOSDK)/platform/emdrv/rtcdrv/src/*.c)
 #C_INCLUDES += -I$(GECKOSDK)/platform/emdrv/rtcdrv/inc -I$(GECKOSDK)/platform/emdrv/rtcdrv/config
+
+# check if the version string is empty
+ifeq ($(VERSION),)
+    VERSION := $(COMMIT)-$(COMMIT_DATE)
+endif
+# git status --porcelain outputs a machine-readable text and the output is empty
+# if the working tree is clean
+ifneq ($(shell git status --porcelain --untracked-files=no),)
+    VERSION := $(VERSION)-dirty
+endif
+ifeq ($(HWREV),)
+    HWREV := 1
+endif
+
+C_FLAGS += -DVERSION="$(VERSION)" -DHWREV="$(HWREV)"
+
+TARGET = $(PROJECTNAME)_v$(HWREV)
 
 
 #######################################

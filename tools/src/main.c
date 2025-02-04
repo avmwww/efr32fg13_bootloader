@@ -226,10 +226,12 @@ int main(int argc, char **argv)
 		failure(errno, "Can't set serial port %s parameters", conf.dev);
 
 	if (conf.baud != BAUD_RATE_DEFAULT) {
-		bootloader_set_baud(&conf);
+		//bootloader_set_baud(&conf);
 		if (serial_setup(conf.fd, conf.baud) < 0)
 			failure(errno, "Can't set serial port %s parameters", conf.dev);
 	}
+
+	serial_set_timeout(conf.fd, 3.0);
 
 	if (conf.info)
 		bootloader_info(&conf);

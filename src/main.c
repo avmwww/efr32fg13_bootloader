@@ -21,7 +21,13 @@
 
 #define USART_CTRL_PORT		0
 #define USART_BUF_LEN		512
-#define USART_BAUD_RATE		115200
+#define USART0_BAUD_RATE		115200
+#define USART1_BAUD_RATE		420000
+
+static const uint32_t usart_baud_rate_default[] = {
+	USART0_BAUD_RATE,
+	USART1_BAUD_RATE,
+};
 
 __attribute__((__noreturn__)) void boot_app(void);
 
@@ -29,13 +35,12 @@ __attribute__((__noreturn__)) void boot_app(void);
 struct bootloader_s {
 	struct timer *timer;
 	struct btl_info_s *info;
-	struct {
+	struct boot_port {
 		uint32_t baud;
-		int num;
 		uint32_t last_time;
-	} usart;
+		btl_if_t iface;
+	} usart[USART_NUM];
 	uint32_t clock;
-	btl_if_t iface;
 };
 
 static int led_timer(void *arg)
@@ -111,11 +116,15 @@ static void system_failure(void)
 
 static void system_init(struct bootloader_s *bt)
 {
+	int i;
+
 	bt->info = (struct btl_info_s *)__btl_info_start__;
 
-	usart_init(bt->usart.num, USART0_BUF_LEN, USART0_BUF_LEN);
-	usart_set_baudrate(bt->usart.num, bt->usart.baud);
-	bt->usart.baud = usart_get_baudrate(bt->usart.num);
+	for (i = 0; i < USART_NUM; i++) {
+		usart_init(i, USART0_BUF_LEN, USART0_BUF_LEN);
+		usart_set_baudrate(i, bt->usart[i].baud);
+		bt->usart[i].baud = usart_get_baudrate(i);
+	}
 	bt->clock = SystemCoreClockGet();
 
 	bt->timer = timer_create();
@@ -123,26 +132,27 @@ static void system_init(struct bootloader_s *bt)
 	timer_add(bt->timer, led_timer, bt, TIMER_MS(500), true);
 }
 
-static void usart_handle(struct bootloader_s *bt)
+static void usart_handle(struct bootloader_s *bt, int port)
 {
 	int len;
 	int err;
-	int c = usart_read(bt->usart.num);
+	int c = usart_read(port);
 	uint32_t ms = timer_get_ms();
+	struct boot_port *bp = &bt->usart[port];
 
 	if (c < 0) {
-		if ((ms - bt->usart.last_time) > 1) {
+		if ((ms - bp->last_time) > 1) {
 			/* reset input bytes by 1 mS timeout */
-			bt->usart.last_time = ms;
-			bt->iface.len = 0;
+			bp->last_time = ms;
+			bp->iface.len = 0;
 		}
 		return;
 	}
-	bt->usart.last_time = ms;
+	bp->last_time = ms;
 
-	err = btl_read_byte(&bt->iface, c);
+	err = btl_read_byte(&bp->iface, c);
 	if (err < 0) {
-		bt->iface.len = 0;
+		bp->iface.len = 0;
 		return;
 	}
 
@@ -150,43 +160,67 @@ static void usart_handle(struct bootloader_s *bt)
 		return;
 
 	/* complete */
-	len = btl_handle_packet(&bt->iface);
+	len = btl_handle_packet(&bp->iface);
 	if (len > 0)
-		usart_write_buf(bt->usart.num, bt->iface.buf, len);
+		usart_write_buf(port, bp->iface.buf, len);
 
-	if (bt->iface.reset) {
+	if (bp->iface.reset) {
 		/* system reset requested */
 		timer_sleep_ms(20);
 		__NVIC_SystemReset();
 	}
 
-	if (bt->iface.baud) {
+	if (bp->iface.baud) {
 		/* change baud rate requested */
 		timer_sleep_ms(20);
-		usart_set_baudrate(bt->usart.num, bt->iface.baud);
+		usart_set_baudrate(port, bp->iface.baud);
 	}
 
-	bt->iface.baud = 0;
-	bt->iface.reset = 0;
-	bt->iface.len = 0;
+	bp->iface.baud = 0;
+	bp->iface.reset = 0;
+	bp->iface.len = 0;
 }
 
-static void btl_print_info(struct bootloader_s *bt)
+static void usart_handle_all(struct bootloader_s *bt)
+{
+	int i;
+
+	for (i = 0; i < USART_NUM; i++)
+		usart_handle(bt, i);
+}
+
+static void usart_puts_all(const char *str)
+{
+	int i;
+
+	for (i = 0; i < USART_NUM; i++)
+		usart_puts(i, str);
+}
+
+static void btl_print_info(struct bootloader_s *bt, int port)
 {
 	uint64_t id;
 
 	id = taget_get_id();
-	usart_puts(bt->usart.num, "\r\n" BTL_VERSION_STR "\r\n");
-	usart_puts(bt->usart.num, "DEV ID: ");
-	usart_puth(bt->usart.num, id);
-	usart_puts(bt->usart.num, "\r\n");
+	usart_puts(port, "\r\n" BTL_VERSION_STR "\r\n");
+	usart_puts(port, "DEV ID: ");
+	usart_puth(port, id);
+	usart_puts(port, "\r\n");
 
-	usart_puts(bt->usart.num, "CLOCK: ");
-	usart_putd(bt->usart.num, bt->clock);
-	usart_puts(bt->usart.num, ", ");
-	usart_puts(bt->usart.num, "BAUD: ");
-	usart_putd(bt->usart.num, bt->usart.baud);
-	usart_puts(bt->usart.num, "\r\n");
+	usart_puts(port, "CLOCK: ");
+	usart_putd(port, bt->clock);
+	usart_puts(port, ", ");
+	usart_puts(port, "BAUD: ");
+	usart_putd(port, bt->usart[port].baud);
+	usart_puts(port, "\r\n");
+}
+
+static void btl_print_info_all(struct bootloader_s *bt)
+{
+	int i;
+
+	for (i = 0; i < USART_NUM; i++)
+		btl_print_info(bt, i);
 }
 
 static int btl_flash_app(struct bootloader_s *bt)
@@ -202,39 +236,49 @@ static int btl_flash_app(struct bootloader_s *bt)
 	return 0;
 }
 
+static void btl_usart_enable(struct bootloader_s *bt)
+{
+	int i;
+	(void)bt;
+
+	for (i = 0; i < USART_NUM; i++)
+		usart_rx_enable(i);
+}
+
 static void system_run(struct bootloader_s *bt)
 {
 	uint32_t magic = bt->info->magic;
 
-	btl_print_info(bt);
+	btl_print_info_all(bt);
 
-	usart_puts(bt->usart.num, "Reboot cause: ");
+	usart_puts_all("Reboot cause: ");
 	if (magic == BTL_MAGIC || boot_pin() == 0) {
-		usart_puts(bt->usart.num, "soft");
+		usart_puts_all("soft");
 		bt->info->magic = 0;
 		if (bt->info->target == BTL_FLASH_APP) {
 			bt->info->target = 0;
-			usart_puts(bt->usart.num, ", flash app\r\n");
+			usart_puts_all(", flash app\r\n");
 			if (btl_flash_app(bt) == 0) {
 				timer_sleep_ms(30);
 				boot_app();
 			}
 		}
 	} else {
-		usart_puts(bt->usart.num, "hard\r\n");
+		usart_puts_all("hard\r\n");
 		timer_sleep_ms(30);
 		/* boot application */
 		boot_app();
 	}
 
-	usart_puts(bt->usart.num, "\r\n");
+	usart_puts_all("\r\n");
 
 	led_red_on();
 	led_green_off();
-	usart_rx_enable(bt->usart.num);
+
+	btl_usart_enable(bt);
 
 	for (;;) {
-		usart_handle(bt);
+		usart_handle_all(bt);
 
 		timer_handle(bt->timer);
 	}
@@ -243,6 +287,7 @@ static void system_run(struct bootloader_s *bt)
 int main(void)
 {
 	struct bootloader_s *bt;
+	int i;
 
 	/* Chip errata */
 	CHIP_Init();
@@ -255,8 +300,8 @@ int main(void)
 
 	memset(bt, 0, sizeof(struct bootloader_s));
 
-	bt->usart.num = USART_CTRL_PORT;
-	bt->usart.baud = USART_BAUD_RATE;
+	for (i = 0; i < USART_NUM; i++)
+		bt->usart[i].baud = usart_baud_rate_default[i];
 
 	system_init(bt);
 

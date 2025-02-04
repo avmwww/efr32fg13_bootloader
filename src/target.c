@@ -42,7 +42,6 @@ static usart_hw_t usart_hw[2] = {
 			.half_route = USART1_ROUTE_HALF_RX,
 			.port = USART1_PORT_RX,
 			.pin = USART1_PIN_RX,
-			.inverted = 1,
 		},
 		.tx = {
 			.irq = USART1_TX_IRQn,
@@ -50,7 +49,6 @@ static usart_hw_t usart_hw[2] = {
 			.half_route = USART1_ROUTE_HALF_TX,
 			.port = USART1_PORT_TX,
 			.pin = USART1_PIN_TX,
-			.inverted = 1,
 		},
 	},
 };
@@ -115,7 +113,7 @@ static void usart_configure_pins(usart_hw_t *hw)
 	/* Configure VCOM transmit pin to board controller as an output */
 	GPIO_PinModeSet(hw->tx.port, hw->tx.pin, gpioModePushPull, 1);
 
-	/* Configure VCOM reeive pin from board controller as an input */
+	/* Configure VCOM receive pin from board controller as an input */
 	GPIO_PinModeSet(hw->rx.port, hw->rx.pin, gpioModeInput, 0);
 
 	// Enable VCOM connection to board controller

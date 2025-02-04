@@ -14,11 +14,13 @@ LIBRARY=../../../library
 
 PROGOPT=$(LIBRARY)/progopt
 UTILS=$(LIBRARY)/utils
-
-SRCMISC = $(PROGOPT_SRCS) $(UTILS_SRS)
+SERIAL=$(LIBRARY)/serial/posix
 
 PROGOPT_SRCS = $(PROGOPT)/progopt.c
 UTILS_SRS = $(UTILS)/failure.c
+SERIAL_SRC = $(SERIAL)/serial.c
+
+SRCMISC = $(PROGOPT_SRCS) $(UTILS_SRS) $(SERIAL_SRC)
 
 SRCS_BTL = main.c \
 	       btlproto.c \
@@ -36,7 +38,7 @@ SRCS_BTL += $(SRCMISC)
 OBJS = $(addprefix $(OBJDIR)/, $(notdir $(SRCS_BTL:.c=.o)))
 
 CFLAGS ?= $(C_FLAGS)
-CFLAGS += -I$(INCDIR) -I$(PROGOPT) -I$(UTILS) -I../include -I.
+CFLAGS += -I$(INCDIR) -I$(PROGOPT) -I$(UTILS) -I$(SERIAL) -I../include -I.
 CFLAGS += -Wall
 CFLAGS += -D_GNU_SOURCE -g
 
@@ -61,4 +63,4 @@ vpath %.h $(INCDIR)
 
 vpath %.o $(OBJDIR)
 
-vpath %.c $(PROGOPT) $(UTILS)
+vpath %.c $(PROGOPT) $(UTILS) $(SERIAL)

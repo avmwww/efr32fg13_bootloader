@@ -6,7 +6,7 @@ PROJECTNAME = modem_boot
 BUILD_DIR = build
 
 # Optimization flags
-OPT = -Og
+OPT = -Os
 
 DEBUG =
 
@@ -172,8 +172,7 @@ BTLHEX = $(GECKOSDK)/platform/bootloader/build/first_stage/gcc/first_stage_btl_e
 #######################################
 
 # default action: build all
-#all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
-all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).bin
+all: $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex $(BUILD_DIR)/$(TARGET).bin
 
 # list of objects
 OBJECTS = $(addprefix $(BUILD_DIR)/,$(notdir $(C_SOURCES:.c=.o)))

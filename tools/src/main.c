@@ -1,5 +1,9 @@
 /*
  *
+ * Console tool for bootloader for Silicon Labs erf32fg13 device
+ *
+ * Author
+ * 2024  Andrey Mitrofanov <avmwww@gmail.com>
  *
  */
 #include <stdio.h>
@@ -13,11 +17,7 @@
 
 #include "failure.h"
 #include "progopt.h"
-#ifdef __MINGW32__
-#include "serialport.h"
-#else
 #include "serial.h"
-#endif
 #include "btlctl.h"
 
 //#include "debug.h"

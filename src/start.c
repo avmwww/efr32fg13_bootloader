@@ -1,5 +1,10 @@
 /*
+ * Bootloader for Silicon Labs erf32fg13 device
  *
+ * Author
+ * 2024  Andrey Mitrofanov <avmwww@gmail.com>
+ *
+ * Startup entry
  */
 
 #include <stdint.h>
@@ -30,6 +35,9 @@ void start(void)
 	for(;;);
 }
 
+/*
+ * \brief run main app
+ */
 __attribute__((__noreturn__)) void boot_app(void)
 {
 	uint32_t *reset_vector = (uint32_t *)0;

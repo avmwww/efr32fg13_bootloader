@@ -1,5 +1,10 @@
 /*
+ * Bootloader for Silicon Labs erf32fg13 device
  *
+ * Author
+ * 2024  Andrey Mitrofanov <avmwww@gmail.com>
+ *
+ * Main
  */
 
 #include <stdlib.h>
@@ -19,9 +24,13 @@
 #include "flash.h"
 #include "btl.h"
 
+#define CMD_BUF_LEN		256
+
 #define USART_CTRL_PORT		0
 #define USART_BUF_LEN		512
+/* Deafult baud rate for PC side */
 #define USART0_BAUD_RATE		115200
+/* Deafult baud rate for FC side */
 #define USART1_BAUD_RATE		420000
 
 static const uint32_t usart_baud_rate_default[] = {
@@ -55,6 +64,11 @@ static void usart_puts(int num, const char *str)
 	usart_write_buf(num, str, strlen(str));
 }
 
+/*
+ * \brief print in hex format number \d on usart \num.
+ * \param num usart number 0 or 1.
+ * \param d decimal number.
+ */
 static void usart_puth(int num, uint64_t d)
 {
 	char buf[20];
@@ -79,6 +93,11 @@ static void usart_puth(int num, uint64_t d)
 	}
 }
 
+/*
+ * \brief print in decimal format number \d on usart \num.
+ * \param num usart number 0 or 1.
+ * \param d decimal number.
+ */
 static void usart_putd(int num, unsigned int d)
 {
 	char buf[16];
@@ -104,8 +123,6 @@ static void usart_putd(int num, unsigned int d)
 	}
 }
 
-#define CMD_BUF_LEN		256
-
 static void system_failure(void)
 {
 	for (;;) {
@@ -114,6 +131,10 @@ static void system_failure(void)
 	}
 }
 
+/*
+ * \brief Initalize system.
+ * \param bt bootloader runtime context.
+ */
 static void system_init(struct bootloader_s *bt)
 {
 	int i;
@@ -197,6 +218,9 @@ static void usart_puts_all(const char *str)
 		usart_puts(i, str);
 }
 
+/*
+ * \brief print information of bootloader on usart
+ */
 static void btl_print_info(struct bootloader_s *bt, int port)
 {
 	uint64_t id;
@@ -223,6 +247,13 @@ static void btl_print_info_all(struct bootloader_s *bt)
 		btl_print_info(bt, i);
 }
 
+/*
+ * \brief copying the flash memory used for temporary recording
+ *        of the application to the main area.
+ *        No checksums are used.
+ *        It is assumed that the bootloader emergency mode will
+ *        be activated at startup if the button is pressed
+ */
 static int btl_flash_app(struct bootloader_s *bt)
 {
 	(void)bt;
@@ -245,6 +276,10 @@ static void btl_usart_enable(struct bootloader_s *bt)
 		usart_rx_enable(i);
 }
 
+/*
+ * \brief  main system process.
+ * \param bt bootloader runtime context.
+ */
 static void system_run(struct bootloader_s *bt)
 {
 	uint32_t magic = bt->info->magic;
@@ -284,6 +319,9 @@ static void system_run(struct bootloader_s *bt)
 	}
 }
 
+/*
+ * main
+ */
 int main(void)
 {
 	struct bootloader_s *bt;

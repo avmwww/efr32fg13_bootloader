@@ -1,5 +1,5 @@
 #
-# Makefile for bootloader update project
+# Makefile for bootloader console tool project
 #
 
 CC=$(CROSS_COMPILE)gcc
@@ -10,11 +10,21 @@ SRCDIR = src
 OBJDIR = obj
 INCDIR = include
 
-LIBRARY=../../../library
+LIBRARY ?= ../../../library
+
+ifeq ($(findstring mingw,$(CROSS_COMPILE)),)
+	TARGET_OS := Linux
+else
+	TARGET_OS := MINGW
+endif
 
 PROGOPT=$(LIBRARY)/progopt
 UTILS=$(LIBRARY)/utils
+ifeq ($(TARGET_OS),MINGW)
+SERIAL=$(LIBRARY)/serial/windows
+else
 SERIAL=$(LIBRARY)/serial/posix
+endif
 
 PROGOPT_SRCS = $(PROGOPT)/progopt.c
 UTILS_SRS = $(UTILS)/failure.c
@@ -23,15 +33,10 @@ SERIAL_SRC = $(SERIAL)/serial.c
 SRCMISC = $(PROGOPT_SRCS) $(UTILS_SRS) $(SERIAL_SRC)
 
 SRCS_BTL = main.c \
-	       btlproto.c \
-	       zalloc.c \
-	       dump_hex.c \
-
-ifeq ($(findstring mingw,$(CROSS_COMPILE)),)
-SRCS_BTL += serial.c
-else
-SRCS_BTL += serialport.c
-endif
+	   btlproto.c \
+	   zalloc.c \
+	   dump_hex.c \
+	   serial.c \
 
 SRCS_BTL += $(SRCMISC)
 

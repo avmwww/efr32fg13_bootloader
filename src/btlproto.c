@@ -1,5 +1,10 @@
 /*
+ * Bootloader for Silicon Labs erf32fg13 device
  *
+ * Author
+ * 2024  Andrey Mitrofanov <avmwww@gmail.com>
+ *
+ * Serial protocol
  */
 
 #include <string.h>

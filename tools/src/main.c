@@ -22,8 +22,8 @@
 
 //#include "debug.h"
 
-#define XINTSTR(s)		INTSTR(s)
-#define INTSTR(s)		#s
+#define XINTSTR(s)			INTSTR(s)
+#define INTSTR(s)			#s
 
 #ifdef __MINGW32__
 #define BTLCTL_DEVICE_DEFAULT		"com1"
@@ -31,6 +31,12 @@
 #define BTLCTL_DEVICE_DEFAULT		"/dev/ttyUSB0"
 #endif
 #define BAUD_RATE_DEFAULT		115200
+
+#define BTL_RETRY			0
+
+#ifndef __MINGW32__
+# define O_BINARY		0
+#endif
 
 struct btlctl_conf {
 	char *dev;
@@ -42,6 +48,7 @@ struct btlctl_conf {
 	int addr;
 	int skip;
 	int reset;
+	int retry;
 };
 
 #define BTLCTL_OPT(s, l, d, t, o, v) \
@@ -60,6 +67,9 @@ static struct prog_option btlctl_options[] = {
 	BTLCTL_OPT_INT('a', "addr", "address of flash offset, default 0", addr),
 	BTLCTL_OPT_NO('s', "skip", "skip erase of flash", skip, 1),
 	BTLCTL_OPT_NO('r', "reset", "reset bootloader and run app", reset, 1),
+	BTLCTL_OPT_INT('t', "retry", "retry transfer n times\n"
+				     "\t\tif a serial port transmission error "
+				     "is detected, default " XINTSTR(BTL_RETRY), retry),
 	PROG_END,
 };
 
@@ -72,7 +82,7 @@ static void usage(char *prog, struct prog_option *opt)
 	exit(EXIT_FAILURE);
 }
 
-static int btl_transfer(serial_handle fd, uint8_t cmd, uint32_t addr,
+static int btl_transfer_single(serial_handle fd, uint8_t cmd, uint32_t addr,
 		void *out, int out_len, void *in)
 {
 	uint8_t c, sz, st;
@@ -92,6 +102,19 @@ static int btl_transfer(serial_handle fd, uint8_t cmd, uint32_t addr,
 
 	return sz;
 }
+
+static int btl_transfer(serial_handle fd, uint8_t cmd, uint32_t addr,
+		void *out, int out_len, void *in, int retry)
+{
+	int err;
+
+	while ((err = btl_transfer_single(fd, cmd, addr, out, out_len, in)) < 0) {
+		if (retry-- == 0)
+			break;
+	}
+	return err;
+}
+
 static void btl_set_u32(void *buf, uint32_t val)
 {
 	uint8_t *p = buf;
@@ -109,7 +132,7 @@ static void bootloader_set_baud(struct btlctl_conf *cfg)
 
 	btl_set_u32(buf, cfg->baud);
 
-	if ((len = btl_transfer(cfg->fd, BTL_CMD_BAUD, 0, buf, 0, NULL)) < 0)
+	if ((len = btl_transfer(cfg->fd, BTL_CMD_BAUD, 0, buf, 0, NULL, cfg->retry)) < 0)
 		failure(errno, "Bootloader set baud failed");
 }
 
@@ -125,7 +148,7 @@ static void bootloader_info(struct btlctl_conf *cfg)
 	char info[256];
 	int len;
 
-	if ((len = btl_transfer(cfg->fd, BTL_CMD_INFO, 0, NULL, 0, info)) < 0)
+	if ((len = btl_transfer(cfg->fd, BTL_CMD_INFO, 0, NULL, 0, info, cfg->retry)) < 0)
 		failure(errno, "Request bootloader information failed");
 
 	printf("Bootloader information:\n");
@@ -143,7 +166,7 @@ static void flash_erase(struct btlctl_conf *cfg, int len)
 	fflush(stderr);
 	/* address */
 	btl_set_u32(buf, len);
-	if (btl_transfer(cfg->fd, BTL_CMD_ERASE, cfg->addr, buf, 4, NULL) < 0)
+	if (btl_transfer(cfg->fd, BTL_CMD_ERASE, cfg->addr, buf, 4, NULL, cfg->retry) < 0)
 		failure(errno, "\nFlash erase failed");
 
 	printf("Done\n");
@@ -156,11 +179,7 @@ static void flash_file(struct btlctl_conf *cfg)
 	uint32_t addr;
 	int bytes = 0;
 	struct stat stat;
-#ifdef __MINGW32__
 	int fd = open(cfg->flash, O_RDONLY | O_BINARY);
-#else
-	int fd = open(cfg->flash, O_RDONLY);
-#endif
 
 	if (fd < 0)
 		failure(errno, "Can't open flash file %s", cfg->flash);
@@ -182,7 +201,7 @@ static void flash_file(struct btlctl_conf *cfg)
 			break;
 
 		dbg("read from file %d bytes\n", sz);
-		if (btl_transfer(cfg->fd, BTL_CMD_WRITE, addr, buf, sz, NULL) < 0)
+		if (btl_transfer(cfg->fd, BTL_CMD_WRITE, addr, buf, sz, NULL, cfg->retry) < 0)
 			failure(errno, "\nFlash write failed");
 
 		addr += sz;
